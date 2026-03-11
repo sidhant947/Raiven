@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'screens/onboarding_screen.dart';
 import 'screens/chat_screen.dart';
 
-import 'package:hive_flutter/hive_flutter.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Hive for local storage
   await Hive.initFlutter();
   await Hive.openBox('chats');
 
@@ -21,6 +21,9 @@ void main() async {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+
+  // Prefer high refresh rate
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   final prefs = await SharedPreferences.getInstance();
   final bool onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
@@ -49,6 +52,13 @@ class RaivenApp extends StatelessWidget {
               ),
             ),
         useMaterial3: true,
+        // Smoother page transitions
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          },
+        ),
       ),
       home: onboardingComplete ? const ChatScreen() : const OnboardingScreen(),
     );

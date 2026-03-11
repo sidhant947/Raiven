@@ -11,6 +11,7 @@ class GlassContainer extends StatelessWidget {
   final double? width;
   final double? height;
   final Color? color;
+  final bool enableBlur;
 
   const GlassContainer({
     Key? key,
@@ -23,41 +24,51 @@ class GlassContainer extends StatelessWidget {
     this.width,
     this.height,
     this.color,
+    this.enableBlur = true,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: margin,
-      width: width,
-      height: height,
+    final borderRadiusGeometry = BorderRadius.circular(borderRadius);
+    final resolvedColor = color ?? Colors.white.withValues(alpha: opacity);
+
+    Widget container = Container(
+      padding: padding,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(borderRadius),
+        color: resolvedColor,
+        borderRadius: borderRadiusGeometry,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.3),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            spreadRadius: -4,
+          ),
+        ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
+      child: child,
+    );
+
+    if (enableBlur) {
+      container = ClipRRect(
+        borderRadius: borderRadiusGeometry,
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              color: color ?? Colors.white.withOpacity(opacity),
-              borderRadius: BorderRadius.circular(borderRadius),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.3),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  spreadRadius: -5,
-                ),
-              ],
-            ),
-            child: child,
-          ),
+          child: container,
         ),
+      );
+    }
+
+    return RepaintBoundary(
+      child: Container(
+        margin: margin,
+        width: width,
+        height: height,
+        decoration: BoxDecoration(borderRadius: borderRadiusGeometry),
+        child: container,
       ),
     );
   }

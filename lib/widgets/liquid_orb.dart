@@ -1,13 +1,12 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 class LiquidOrb extends StatefulWidget {
   final double size;
   const LiquidOrb({Key? key, this.size = 200}) : super(key: key);
 
   @override
-  _LiquidOrbState createState() => _LiquidOrbState();
+  State<LiquidOrb> createState() => _LiquidOrbState();
 }
 
 class _LiquidOrbState extends State<LiquidOrb>
@@ -31,106 +30,136 @@ class _LiquidOrbState extends State<LiquidOrb>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-          width: widget.size,
-          height: widget.size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withOpacity(0.1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 40,
-                spreadRadius: 10,
-              ),
-              BoxShadow(
-                color: Colors.blue.withOpacity(0.1),
-                blurRadius: 20,
-                spreadRadius: -10,
-              ),
-            ],
-          ),
-          child: ClipOval(
-            child: Stack(
-              children: [
-                // Inner gradient that rotates
-                AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    return Transform.rotate(
-                      angle: _controller.value * 2 * pi,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: SweepGradient(
-                            colors: [
-                              const Color(0xFF1E3A8A), // Dark blue
-                              const Color(0xFFC084FC), // Purple
-                              const Color(0xFFFDE047), // Yellow/gold
-                              const Color(0xFFE0E7FF), // Light blue
-                              const Color(0xFF1E3A8A),
-                            ],
-                            stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
-                            center: Alignment.center,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final value = _controller.value;
+            final breathScale =
+                0.95 + 0.1 * (0.5 + 0.5 * sin(value * 2 * pi * 0.2));
+            return Transform.scale(scale: breathScale, child: child);
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 40,
+                  spreadRadius: 10,
                 ),
-                // Middle liquid layer
-                AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    return Transform.rotate(
-                      angle: -_controller.value * 2 * pi * 0.7,
-                      child: Transform.scale(
-                        scale: 1.2,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            gradient: RadialGradient(
-                              colors: [
-                                Colors.transparent,
-                                Colors.black87,
-                                Colors.transparent,
-                              ],
-                              stops: [0.1, 0.6, 1.0],
-                              focal: Alignment(-0.2, -0.2),
-                              focalRadius: 0.1,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                // Glass reflection overlay
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withOpacity(0.8),
-                        Colors.white.withOpacity(0.1),
-                        Colors.transparent,
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.3),
-                      ],
-                      stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
-                    ),
-                  ),
+                BoxShadow(
+                  color: Colors.blue.withValues(alpha: 0.1),
+                  blurRadius: 20,
+                  spreadRadius: -10,
                 ),
               ],
             ),
+            child: ClipOval(
+              child: Stack(
+                children: [
+                  // Inner gradient that rotates
+                  _RotatingGradient(controller: _controller),
+                  // Middle liquid layer
+                  _LiquidLayer(controller: _controller),
+                  // Glass reflection overlay — static, no rebuild needed
+                  const _GlassReflection(),
+                ],
+              ),
+            ),
           ),
-        )
-        .animate(onPlay: (controller) => controller.repeat(reverse: true))
-        .scaleXY(
-          begin: 0.95,
-          end: 1.05,
-          duration: 3.seconds,
-          curve: Curves.easeInOutSine,
+        ),
+      ),
+    );
+  }
+}
+
+class _RotatingGradient extends StatelessWidget {
+  final AnimationController controller;
+  const _RotatingGradient({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        return Transform.rotate(angle: controller.value * 2 * pi, child: child);
+      },
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: SweepGradient(
+            colors: [
+              Color(0xFF1E3A8A),
+              Color(0xFFC084FC),
+              Color(0xFFFDE047),
+              Color(0xFFE0E7FF),
+              Color(0xFF1E3A8A),
+            ],
+            stops: [0.0, 0.25, 0.5, 0.75, 1.0],
+            center: Alignment.center,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LiquidLayer extends StatelessWidget {
+  final AnimationController controller;
+  const _LiquidLayer({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        return Transform.rotate(
+          angle: -controller.value * 2 * pi * 0.7,
+          child: child,
         );
+      },
+      child: Transform.scale(
+        scale: 1.2,
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              colors: [Colors.transparent, Colors.black87, Colors.transparent],
+              stops: [0.1, 0.6, 1.0],
+              focal: Alignment(-0.2, -0.2),
+              focalRadius: 0.1,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassReflection extends StatelessWidget {
+  const _GlassReflection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0.8),
+            Colors.white.withValues(alpha: 0.1),
+            Colors.transparent,
+            Colors.transparent,
+            Colors.black.withValues(alpha: 0.3),
+          ],
+          stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
+        ),
+      ),
+    );
   }
 }

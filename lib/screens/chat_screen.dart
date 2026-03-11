@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -15,10 +14,10 @@ class ChatScreen extends StatefulWidget {
   const ChatScreen({Key? key}) : super(key: key);
 
   @override
-  _ChatScreenState createState() => _ChatScreenState();
+  State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   String _userName = 'User';
   final TextEditingController _msgController = TextEditingController();
   final OpenRouterService _apiService = OpenRouterService();
@@ -38,12 +37,26 @@ class _ChatScreenState extends State<ChatScreen> {
   String _selectedModelId = 'openrouter/free';
   bool _isLoadingModels = false;
 
+  late final AnimationController _fadeController;
+
   @override
   void initState() {
     super.initState();
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
     _loadUser();
     _fetchModels();
     _createNewChat();
+  }
+
+  @override
+  void dispose() {
+    _msgController.dispose();
+    _scrollController.dispose();
+    _fadeController.dispose();
+    super.dispose();
   }
 
   void _loadChat(String id) {
@@ -175,6 +188,7 @@ class _ChatScreenState extends State<ChatScreen> {
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
+        transitionDuration: const Duration(milliseconds: 600),
       ),
     );
   }
@@ -189,12 +203,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
       String contentToSend = text;
       if (_replyMessage != null) {
-        // Extract a clean quote avoiding infinite nested quoting
         String cleanQuote = _replyMessage!['content']!
             .replaceAll(RegExp(r'^>.*\n?', multiLine: true), '')
             .trim();
 
-        // Truncate quote to a single short line
         final lines = cleanQuote.split('\n');
         if (lines.isNotEmpty) {
           cleanQuote = lines.first.trim();
@@ -220,10 +232,8 @@ class _ChatScreenState extends State<ChatScreen> {
       final history = _messages
           .map((m) => {'role': m['role']!, 'content': m['content']!})
           .toList();
-      history
-          .removeLast(); // Exclude the just-added user message because API call needs up to the history + new one, wait no, my OpenRouterService does `messages = [...history, {'role': 'user', ...}]`
+      history.removeLast();
 
-      // Let's adapt my service. My service actually appends the user message itself! Let me just pass the history BEFORE the current message.
       final response = await _apiService.sendMessage(
         text,
         history: history,
@@ -244,9 +254,15 @@ class _ChatScreenState extends State<ChatScreen> {
       _scrollToBottom();
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
       }
     }
   }
@@ -256,8 +272,8 @@ class _ChatScreenState extends State<ChatScreen> {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutCubic,
         );
       }
     });
@@ -283,7 +299,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       height: 4,
                       width: 40,
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -307,6 +323,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       child: GlassContainer(
                         opacity: 0.1,
+                        enableBlur: false,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: TextField(
                           decoration: const InputDecoration(
@@ -451,7 +468,9 @@ class _ChatScreenState extends State<ChatScreen> {
                             onPressed: () => _deleteChat(key),
                           ),
                           selected: isCurrent,
-                          selectedTileColor: Colors.black.withOpacity(0.05),
+                          selectedTileColor: Colors.black.withValues(
+                            alpha: 0.05,
+                          ),
                         );
                       },
                     ),
@@ -516,26 +535,13 @@ class _ChatScreenState extends State<ChatScreen> {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Background Liquid Gradient
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFFC7D2E6), // Light grayish blue
-                    Color(0xFFE2E8F0),
-                    Color(0xFFCBD5E1),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          // Background gradient — const so no rebuilds
+          const _BackgroundGradient(),
 
           SafeArea(
             child: Column(
               children: [
+                // Header
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10.0,
@@ -552,6 +558,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             size: 28,
                           ),
                           onPressed: () => Scaffold.of(ctx).openDrawer(),
+                          splashRadius: 24,
                         ),
                       ),
                       if (_isChatActive)
@@ -564,19 +571,19 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
 
+                // Chat area
                 Expanded(
-                  child: Stack(
-                    children: [
-                      // Chat List or Empty State
-                      if (!_isChatActive)
-                        _buildEmptyState()
-                      else
-                        _buildChatList(),
-                    ],
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: _isChatActive
+                        ? _buildChatList()
+                        : _buildEmptyState(),
                   ),
                 ),
 
-                // Bottom Input Box
+                // Bottom input
                 _buildBottomInput(),
               ],
             ),
@@ -588,6 +595,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildEmptyState() {
     return Center(
+      key: const ValueKey('empty'),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -622,8 +630,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildChatList() {
     return ListView.builder(
+      key: const ValueKey('chat'),
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      // Cull off-screen widgets for performance
+      addAutomaticKeepAlives: false,
+      addRepaintBoundaries: true,
       itemCount: _messages.length + (_isLoading ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == _messages.length && _isLoading) {
@@ -650,20 +662,21 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: const EdgeInsets.all(8.0),
               child: Text(
                 msg['content']!,
-                style: const TextStyle(color: Colors.redAccent),
+                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
               ),
             ),
           );
         }
 
         return Dismissible(
-          key: UniqueKey(),
+          // Use a stable key so Flutter can diff properly
+          key: ValueKey('msg_${_chatId}_$index'),
           direction: DismissDirection.startToEnd,
           confirmDismiss: (direction) async {
             setState(() {
               _replyMessage = msg;
             });
-            return false; // don't actually delete the item
+            return false;
           },
           background: Container(
             alignment: Alignment.centerLeft,
@@ -672,22 +685,32 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           child: Align(
             alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 20, top: 4),
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              child: GlassContainer(
-                opacity: isUser ? 0.4 : 0.8,
-                color: isUser ? Colors.black87 : Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 14,
-                ),
-                borderRadius: 24,
-                child: _buildMessageContent(msg['content']!, isUser),
-              ),
-            ).animate().slideY(begin: 0.1, duration: 300.ms).fadeIn(),
+            child:
+                Container(
+                      margin: const EdgeInsets.only(bottom: 16, top: 4),
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.78,
+                      ),
+                      child: GlassContainer(
+                        opacity: isUser ? 0.4 : 0.8,
+                        color: isUser ? Colors.black87 : Colors.white,
+                        enableBlur:
+                            false, // Disable expensive blur on chat bubbles
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 14,
+                        ),
+                        borderRadius: 24,
+                        child: _buildMessageContent(msg['content']!, isUser),
+                      ),
+                    )
+                    .animate()
+                    .slideY(
+                      begin: 0.05,
+                      duration: 250.ms,
+                      curve: Curves.easeOutCubic,
+                    )
+                    .fadeIn(duration: 200.ms),
           ),
         );
       },
@@ -695,7 +718,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _buildMessageContent(String content, bool isUser) {
-    // Check if the message starts with a blockquote (reply)
     final quoteRegex = RegExp(r'^((?:>.*\n?)+)\n*([\s\S]*)$');
     final match = quoteRegex.firstMatch(content);
 
@@ -706,7 +728,6 @@ class _ChatScreenState extends State<ChatScreen> {
           .trim();
       final actualMessage = match.group(2)?.trim() ?? '';
 
-      // Truncate quoted text for display
       String displayQuote = quotedText.split('\n').first;
       if (displayQuote.length > 60) {
         displayQuote = '${displayQuote.substring(0, 60)}...';
@@ -721,8 +742,8 @@ class _ChatScreenState extends State<ChatScreen> {
               border: Border(
                 left: BorderSide(
                   color: isUser
-                      ? Colors.white.withOpacity(0.5)
-                      : Colors.black.withOpacity(0.3),
+                      ? Colors.white.withValues(alpha: 0.5)
+                      : Colors.black.withValues(alpha: 0.3),
                   width: 2.5,
                 ),
               ),
@@ -734,7 +755,9 @@ class _ChatScreenState extends State<ChatScreen> {
               style: TextStyle(
                 fontSize: 13,
                 fontStyle: FontStyle.italic,
-                color: isUser ? Colors.white.withOpacity(0.6) : Colors.black54,
+                color: isUser
+                    ? Colors.white.withValues(alpha: 0.6)
+                    : Colors.black54,
               ),
             ),
           ),
@@ -754,7 +777,6 @@ class _ChatScreenState extends State<ChatScreen> {
       );
     }
 
-    // Normal message without reply
     return MarkdownBody(
       data: content,
       styleSheet: MarkdownStyleSheet(
@@ -772,37 +794,74 @@ class _ChatScreenState extends State<ChatScreen> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_replyMessage != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-            child: Row(
-              children: [
-                const Icon(Icons.reply, size: 16, color: Colors.black54),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Replying to: ${_replyMessage!['content']!.replaceAll(RegExp(r'^>.*\n?', multiLine: true), '').trim()}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black54,
+        // Reply bar
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          child: _replyMessage != null
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 4,
+                  ),
+                  child: GlassContainer(
+                    enableBlur: false,
+                    opacity: 0.15,
+                    borderRadius: 14,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 3,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _replyMessage!['content']!
+                                .replaceAll(
+                                  RegExp(r'^>.*\n?', multiLine: true),
+                                  '',
+                                )
+                                .trim()
+                                .split('\n')
+                                .first,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => setState(() => _replyMessage = null),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4.0),
+                            child: Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                GestureDetector(
-                  onTap: () => setState(() => _replyMessage = null),
-                  child: const Icon(
-                    Icons.close,
-                    size: 16,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
-            ),
-          ).animate().fadeIn().slideY(begin: 1.0),
+                )
+              : const SizedBox.shrink(),
+        ),
+        // Input field
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
           child: GlassContainer(
             opacity: 0.5,
             borderRadius: 30,
@@ -816,12 +875,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     decoration: InputDecoration(
                       hintText: 'Ask anything...',
                       hintStyle: TextStyle(
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black.withValues(alpha: 0.5),
                         fontSize: 16,
                       ),
                       border: InputBorder.none,
                     ),
                     onSubmitted: (_) => _sendMessage(),
+                    textInputAction: TextInputAction.send,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -834,19 +894,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     height: 40,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                     ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // A subtle liquid orb effect behind the send button
-                        if (!_isLoading) const LiquidOrb(size: 32),
-                        const Icon(
-                          Icons.arrow_upward_rounded,
-                          color: Colors.black87,
-                          size: 20,
-                        ),
-                      ],
+                    child: const Icon(
+                      Icons.arrow_upward_rounded,
+                      color: Colors.black87,
+                      size: 20,
                     ),
                   ),
                 ),
@@ -859,6 +912,26 @@ class _ChatScreenState extends State<ChatScreen> {
           curve: Curves.easeOutQuart,
         ),
       ],
+    );
+  }
+}
+
+/// Extracted as const to avoid rebuilds
+class _BackgroundGradient extends StatelessWidget {
+  const _BackgroundGradient();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Positioned.fill(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFC7D2E6), Color(0xFFE2E8F0), Color(0xFFCBD5E1)],
+          ),
+        ),
+      ),
     );
   }
 }

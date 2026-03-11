@@ -8,7 +8,7 @@ class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({Key? key}) : super(key: key);
 
   @override
-  _OnboardingScreenState createState() => _OnboardingScreenState();
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
@@ -28,15 +28,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _nextPage() {
     if (_currentPage == 0 && _nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter your name.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please enter your name.'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
       return;
     }
 
     if (_currentPage == 1 && _apiKeyController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your OpenRouter API Key.')),
+        SnackBar(
+          content: const Text('Please enter your OpenRouter API Key.'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       );
       return;
     }
@@ -122,14 +134,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             width: double.infinity,
                             child: Center(
-                              child: Text(
-                                _currentPage == 0
-                                    ? 'Continue'
-                                    : 'Start Chatting',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 300),
+                                child: Text(
+                                  _currentPage == 0
+                                      ? 'Continue'
+                                      : 'Start Chatting',
+                                  key: ValueKey(_currentPage),
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
                                 ),
                               ),
                             ),
@@ -168,7 +184,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 48, color: Colors.black87),
@@ -192,11 +208,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             subtitle,
             style: TextStyle(
               fontSize: 18,
-              color: Colors.black87.withOpacity(0.7),
+              color: Colors.black87.withValues(alpha: 0.7),
             ),
           ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2, end: 0.0),
           const SizedBox(height: 48),
           GlassContainer(
+            enableBlur: false,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
             child: TextField(
               controller: controller,
@@ -205,8 +222,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: hint,
-                hintStyle: TextStyle(color: Colors.black.withOpacity(0.3)),
+                hintStyle: TextStyle(
+                  color: Colors.black.withValues(alpha: 0.3),
+                ),
               ),
+              textInputAction: obscureText
+                  ? TextInputAction.done
+                  : TextInputAction.next,
+              onSubmitted: (_) => _nextPage(),
             ),
           ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2, end: 0.0),
         ],
