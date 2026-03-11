@@ -8,6 +8,7 @@
 .build/
 .buildlog/
 .history
+.jks
 .svn/
 .swiftpm/
 migrate_working_dir/
@@ -43,3 +44,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/ios/
+/linux/
+/macos/
+/windows/
+/web/
