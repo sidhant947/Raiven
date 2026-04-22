@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/glass_container.dart';
+import '../widgets/main_background.dart';
+import '../services/service_factory.dart';
 import 'chat_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -15,6 +17,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _apiKeyController = TextEditingController();
+  ApiProvider _selectedProvider = ApiProvider.openrouter;
 
   int _currentPage = 0;
 
@@ -32,28 +35,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         SnackBar(
           content: const Text('Please enter your name.'),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
     }
 
-    if (_currentPage == 1 && _apiKeyController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please enter your OpenRouter API Key.'),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
-      return;
-    }
-
-    if (_currentPage < 1) {
+    if (_currentPage < 2) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 600),
         curve: Curves.easeInOutCubic,
@@ -66,14 +54,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _finishOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_name', _nameController.text.trim());
-    await prefs.setString('openrouter_key', _apiKeyController.text.trim());
+    await prefs.setString('api_provider', _selectedProvider.toString().split('.').last);
+    
+    String keyName = '${_selectedProvider.toString().split('.').last}_key';
+    await prefs.setString(keyName, _apiKeyController.text.trim());
     await prefs.setBool('onboarding_complete', true);
 
     if (mounted) {
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const ChatScreen(),
+          pageBuilder: (context, animation, secondaryAnimation) => const ChatScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -86,14 +76,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFE2E8F0), Color(0xFFCBD5E1), Color(0xFF94A3B8)],
-          ),
-        ),
+      backgroundColor: Colors.transparent,
+      body: MainBackground(
         child: SafeArea(
           child: Column(
             children: [
@@ -107,58 +91,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     });
                   },
                   children: [
-                    _buildPage(
-                      title: 'Welcome to Raiven',
-                      subtitle: 'What should I call you?',
-                      controller: _nameController,
-                      hint: 'Your name',
-                      icon: Icons.person_outline,
-                    ),
-                    _buildPage(
-                      title: 'Connect OpenRouter',
-                      subtitle: 'Enter your API key to power up your chat.',
-                      controller: _apiKeyController,
-                      hint: 'sk-or-v1-...',
-                      icon: Icons.vpn_key_outlined,
-                      obscureText: true,
-                    ),
+                    _buildNamePage(),
+                    _buildProviderPage(),
+                    _buildApiKeyPage(),
                   ],
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.all(32.0),
-                child:
-                    GestureDetector(
-                          onTap: _nextPage,
-                          child: GlassContainer(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            width: double.infinity,
-                            child: Center(
-                              child: AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 300),
-                                child: Text(
-                                  _currentPage == 0
-                                      ? 'Continue'
-                                      : 'Start Chatting',
-                                  key: ValueKey(_currentPage),
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                        .animate()
-                        .slideY(
-                          begin: 1.0,
-                          end: 0.0,
-                          curve: Curves.easeOutQuart,
-                          duration: 800.ms,
-                        )
-                        .fadeIn(),
+                child: GestureDetector(
+                  onTap: _nextPage,
+                  child: GlassContainer(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    width: double.infinity,
+                    color: Colors.black87,
+                    child: Center(
+                      child: Text(
+                        _currentPage < 2 ? 'Continue' : 'Start Chatting',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ).animate().slideY(begin: 1.0, duration: 800.ms, curve: Curves.easeOutQuart).fadeIn(),
               ),
             ],
           ),
@@ -167,13 +125,87 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildPage({
+  Widget _buildNamePage() {
+    return _buildPageWrapper(
+      icon: Icons.person_outline,
+      title: 'Welcome to Raiven',
+      subtitle: 'What should I call you?',
+      child: GlassContainer(
+        opacity: 0.1,
+        enableBlur: false,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        child: TextField(
+          controller: _nameController,
+          style: const TextStyle(fontSize: 18, color: Colors.black87),
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+            hintText: 'Your name',
+          ),
+          textInputAction: TextInputAction.next,
+          onSubmitted: (_) => _nextPage(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProviderPage() {
+    return _buildPageWrapper(
+      icon: Icons.psychology_outlined,
+      title: 'Choose Provider',
+      subtitle: 'Select your preferred AI engine.',
+      child: GlassContainer(
+        opacity: 0.1,
+        enableBlur: false,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: ApiProvider.values.map((provider) {
+            final isSelected = _selectedProvider == provider;
+            return ListTile(
+              title: Text(
+                ServiceFactory.getProviderLabel(provider),
+                style: TextStyle(
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+              trailing: isSelected ? const Icon(Icons.check_circle, color: Colors.black87) : null,
+              onTap: () => setState(() => _selectedProvider = provider),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApiKeyPage() {
+    return _buildPageWrapper(
+      icon: Icons.vpn_key_outlined,
+      title: 'API Key',
+      subtitle: 'Enter your ${ServiceFactory.getProviderLabel(_selectedProvider)} key.',
+      child: GlassContainer(
+        opacity: 0.1,
+        enableBlur: false,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        child: TextField(
+          controller: _apiKeyController,
+          obscureText: true,
+          style: const TextStyle(fontSize: 18, color: Colors.black87),
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+            hintText: 'sk-...',
+          ),
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _nextPage(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPageWrapper({
+    required IconData icon,
     required String title,
     required String subtitle,
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    bool obscureText = false,
+    required Widget child,
   }) {
     return Padding(
       padding: const EdgeInsets.all(32.0),
@@ -188,11 +220,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 48, color: Colors.black87),
-          ).animate().scale(
-            delay: 100.ms,
-            duration: 600.ms,
-            curve: Curves.easeOutBack,
-          ),
+          ).animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
           const SizedBox(height: 32),
           Text(
             title,
@@ -200,7 +228,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               fontSize: 36,
               fontWeight: FontWeight.w800,
               letterSpacing: -1.0,
-              color: Colors.black87,
             ),
           ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0.0),
           const SizedBox(height: 12),
@@ -212,26 +239,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2, end: 0.0),
           const SizedBox(height: 48),
-          GlassContainer(
-            enableBlur: false,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            child: TextField(
-              controller: controller,
-              obscureText: obscureText,
-              style: const TextStyle(fontSize: 18, color: Colors.black87),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                hintText: hint,
-                hintStyle: TextStyle(
-                  color: Colors.black.withValues(alpha: 0.3),
-                ),
-              ),
-              textInputAction: obscureText
-                  ? TextInputAction.done
-                  : TextInputAction.next,
-              onSubmitted: (_) => _nextPage(),
-            ),
-          ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2, end: 0.0),
+          child.animate().fadeIn(delay: 400.ms).slideY(begin: 0.2, end: 0.0),
         ],
       ),
     );

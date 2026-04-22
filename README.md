@@ -1,88 +1,53 @@
-
-
 # Raiven
 
-### *Your gateway to every AI model — in one beautiful interface.*
+### *Your gateway to every AI model — in one beautiful, buttery-smooth interface.*
 
+Raiven is a premium, glassmorphic AI chat client built with Flutter. It's designed for power users who want the flexibility of every major AI provider combined with an elite, high-performance user experience.
 
-*Raiven is a sleek, glassmorphic AI chat client built with Flutter — powered by the OpenRouter API.  
-One app. Hundreds of models. Zero friction.*
+One app. Every major provider. **Absolute performance.**
 
+---
+
+## 🚀 Key Features
+
+### 🤖 Multi-Provider Support
+Raiven is no longer just an OpenRouter client. It's a universal AI terminal:
+- **OpenRouter:** Access hundreds of models through the industry's best aggregator.
+- **OpenAI:** Native support for the GPT-4o and GPT-4 series.
+- **Google Gemini:** Full support for Gemini 1.5 Pro, Flash, and 1.0 Pro.
+- **Claude (Anthropic):** Native integration for the Claude 3.5 Sonnet and Opus series.
+- **Mistral AI:** Access Mistral Large and Small natively.
+- **NVIDIA NIM:** High-performance inference via NVIDIA's specialized endpoints.
+- **Custom OpenAI Compatible:** Connect to any self-hosted or niche provider (Ollama, LocalAI, etc.) using a custom base URL.
+
+### ⚡ Absolute Maximum Performance
+Built to be "buttery smooth" even on mid-range devices:
+- **Repaint Boundary Isolation:** Background animations and foreground UI are isolated to ensure 60/120 FPS scrolling.
+- **Granular Rebuild System:** Refactored component architecture ensures only the parts of the screen that change are ever redrawn.
+- **Centralized Animation Engine:** All background "Liquid Orbs" are driven by a single synchronized controller to minimize CPU and battery impact.
+- **Optimized Glassmorphism:** Real-time blur effects are applied surgically to maximize rendering efficiency.
+
+### 💎 Elite UI/UX
+- **Unified Glassmorphism:** A cohesive "Glass" aesthetic across every screen, drawer, and input field.
+- **Dynamic Liquid Background:** Animated, floating orbs that bring the interface to life without distracting from the conversation.
+- **Markdown & Rich Text:** Full support for code blocks, lists, and complex formatting.
+- **Swipe-to-Reply:** Intuitive gesture-based replies for clear, contextual conversations.
+
+### 💾 Smart Persistence
+- **Conversation History:** All chats are stored locally using Hive for instant loading and offline review.
+- **Provider-Aware Settings:** Manage separate API keys for every provider in a secure, centralized settings screen.
+- **Model Memory:** Raiven remembers your preferred model for every provider.
+
+---
+
+## 📥 Getting Started
+
+1.  **Download:** Grab the latest APK from [**Releases**](../../releases).
+2.  **Onboard:** Enter your name and choose your first AI provider.
+3.  **Configure:** Add your API key (stored securely on your device).
+4.  **Chat:** Start talking to the world's most advanced AI models.
 
 
 ---
 
-
-
-## ✨ Why Raiven?
-
-Most AI apps lock you into a single model. **Raiven doesn't.**
-
-With access to the entire OpenRouter catalog — from GPT-4o to Claude, Gemini, Llama, Mistral, and beyond — Raiven puts *you* in control. Switch models mid-conversation. Search through hundreds of options. Or just let it ride on the free tier. Your call.
-
-And it looks *damn good* doing it.
-
-
-
-
-## 🚀 Features
-
-### 💬 Chat
-- Full **Markdown rendering** in responses — code blocks, lists, bold, everything
-- **Swipe-to-reply** — Tag any message by swiping right, just like your favorite messaging apps
-- Single-line quoted replies that stay clean and contextual
-- Real-time **loading animations** with the signature liquid orb
-
-### 🤖 Model Selection
-- Access **every model** available on OpenRouter
-- **Search & filter** through hundreds of models instantly
-- Switch models anytime — your choice persists across sessions
-- Defaults to `openrouter/free` so you can start chatting immediately
-
-### 💾 Chat History
-- **Persistent sessions** powered by Hive — your conversations survive app restarts
-- Start fresh every launch with a new session, old ones stay in the drawer
-- **Individual delete** or **nuke them all** with Delete All
-- Seamlessly switch between past conversations
-
-### 🎛️ Settings
-- **Reset API Key** anytime from the drawer
-- Clean onboarding flow that gets you chatting in under 30 seconds
-- Model preference saved locally
-
-
-
-## 📥 Download
-
-Grab the latest APK from [**Releases**](../../releases).
-
-> Raiven is currently only available for Android.
-
-
-
-## 🐛 Found a Bug?
-
-We appreciate you helping make Raiven better.
-
-**[Open an Issue →](../../issues/new)**
-
-When reporting, please include:
-- What you expected to happen
-- What actually happened
-- Your device model and Android version
-- Screenshots if applicable
-
-
-
-## 🙌 Credits
-
-Built with ❤️ using [Flutter](https://flutter.dev) and the [OpenRouter API](https://openrouter.ai).
-
-
-
-
----
-
-**Raiven** — *Talk to any AI. Beautifully.*
-
-
+**Raiven** — *Talk to any AI. Beautifully. Faster than ever.*

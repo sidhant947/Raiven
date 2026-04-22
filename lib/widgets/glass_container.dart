@@ -53,11 +53,19 @@ class GlassContainer extends StatelessWidget {
     );
 
     if (enableBlur) {
-      container = ClipRRect(
-        borderRadius: borderRadiusGeometry,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: container,
+      return RepaintBoundary(
+        child: Container(
+          margin: margin,
+          width: width,
+          height: height,
+          decoration: BoxDecoration(borderRadius: borderRadiusGeometry),
+          child: ClipRRect(
+            borderRadius: borderRadiusGeometry,
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+              child: container,
+            ),
+          ),
         ),
       );
     }
@@ -67,7 +75,10 @@ class GlassContainer extends StatelessWidget {
         margin: margin,
         width: width,
         height: height,
-        decoration: BoxDecoration(borderRadius: borderRadiusGeometry),
+        decoration: BoxDecoration(
+          color: Colors.transparent, // Ensure no extra layer
+          borderRadius: borderRadiusGeometry,
+        ),
         child: container,
       ),
     );

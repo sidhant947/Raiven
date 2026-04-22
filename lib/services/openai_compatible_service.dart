@@ -1,13 +1,33 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'api_service.dart';
 
-class OpenRouterService {
-  static const String _baseUrl = 'https://openrouter.ai/api/v1';
+class OpenAiCompatibleService implements ApiService {
+  final String baseUrl;
+  final String apiKeyKey;
+  final String defaultModel;
 
+  OpenAiCompatibleService({
+    required this.baseUrl,
+    required this.apiKeyKey,
+    this.defaultModel = 'gpt-3.5-turbo',
+  });
+
+  @override
   Future<List<Map<String, dynamic>>> getModels() async {
+    final prefs = await SharedPreferences.getInstance();
+    final apiKey = prefs.getString(apiKeyKey) ?? '';
+
+    if (apiKey.isEmpty) {
+      throw Exception('API key not found. Please add your key in settings.');
+    }
+
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/models'));
+      final response = await http.get(
+        Uri.parse('$baseUrl/models'),
+        headers: {'Authorization': 'Bearer $apiKey'},
+      );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -23,22 +43,21 @@ class OpenRouterService {
     }
   }
 
+  @override
   Future<String> sendMessage(
     String message, {
     List<Map<String, String>> history = const [],
-    String modelId = 'openrouter/free',
+    String? modelId,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final apiKey = prefs.getString('openrouter_key') ?? '';
+    final apiKey = prefs.getString(apiKeyKey) ?? '';
 
     if (apiKey.isEmpty) {
-      throw Exception('API key not found. Please add your OpenRouter key.');
+      throw Exception('API key not found. Please add your key in settings.');
     }
 
     final headers = {
       'Authorization': 'Bearer $apiKey',
-      'HTTP-Referer': 'https://raiven.app', // Required by OpenRouter
-      'X-Title': 'Raiven AI Chat', // Required by OpenRouter
       'Content-Type': 'application/json',
     };
 
@@ -47,11 +66,14 @@ class OpenRouterService {
       {'role': 'user', 'content': message},
     ];
 
-    final body = jsonEncode({'model': modelId, 'messages': messages});
+    final body = jsonEncode({
+      'model': modelId ?? defaultModel,
+      'messages': messages,
+    });
 
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/chat/completions'),
+        Uri.parse('$baseUrl/chat/completions'),
         headers: headers,
         body: body,
       );
@@ -59,10 +81,6 @@ class OpenRouterService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data['choices'][0]['message']['content'];
-      } else if (response.statusCode == 401) {
-        throw Exception(
-          'Invalid OpenRouter API Key. Please check your settings and ensure it is correct.',
-        );
       } else {
         final errorData = jsonDecode(response.body);
         final errorMessage = errorData['error']?['message'] ?? 'Unknown error';

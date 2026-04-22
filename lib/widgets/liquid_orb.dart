@@ -3,28 +3,40 @@ import 'package:flutter/material.dart';
 
 class LiquidOrb extends StatefulWidget {
   final double size;
-  const LiquidOrb({Key? key, this.size = 200}) : super(key: key);
+  final Animation<double>? animation;
+  
+  const LiquidOrb({
+    Key? key, 
+    this.size = 200, 
+    this.animation,
+  }) : super(key: key);
 
   @override
   State<LiquidOrb> createState() => _LiquidOrbState();
 }
 
-class _LiquidOrbState extends State<LiquidOrb>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+class _LiquidOrbState extends State<LiquidOrb> with SingleTickerProviderStateMixin {
+  late final AnimationController? _internalController;
+  late final Animation<double> _effectiveAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 15),
-    )..repeat();
+    if (widget.animation == null) {
+      _internalController = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 15),
+      )..repeat();
+      _effectiveAnimation = _internalController!;
+    } else {
+      _internalController = null;
+      _effectiveAnimation = widget.animation!;
+    }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _internalController?.dispose();
     super.dispose();
   }
 
@@ -35,11 +47,10 @@ class _LiquidOrbState extends State<LiquidOrb>
         width: widget.size,
         height: widget.size,
         child: AnimatedBuilder(
-          animation: _controller,
+          animation: _effectiveAnimation,
           builder: (context, child) {
-            final value = _controller.value;
-            final breathScale =
-                0.95 + 0.1 * (0.5 + 0.5 * sin(value * 2 * pi * 0.2));
+            final value = _effectiveAnimation.value;
+            final breathScale = 0.95 + 0.1 * (0.5 + 0.5 * sin(value * 2 * pi * 0.2));
             return Transform.scale(scale: breathScale, child: child);
           },
           child: Container(
@@ -62,11 +73,8 @@ class _LiquidOrbState extends State<LiquidOrb>
             child: ClipOval(
               child: Stack(
                 children: [
-                  // Inner gradient that rotates
-                  _RotatingGradient(controller: _controller),
-                  // Middle liquid layer
-                  _LiquidLayer(controller: _controller),
-                  // Glass reflection overlay — static, no rebuild needed
+                  _RotatingGradient(animation: _effectiveAnimation),
+                  _LiquidLayer(animation: _effectiveAnimation),
                   const _GlassReflection(),
                 ],
               ),
@@ -79,15 +87,15 @@ class _LiquidOrbState extends State<LiquidOrb>
 }
 
 class _RotatingGradient extends StatelessWidget {
-  final AnimationController controller;
-  const _RotatingGradient({required this.controller});
+  final Animation<double> animation;
+  const _RotatingGradient({required this.animation});
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: controller,
+      animation: animation,
       builder: (context, child) {
-        return Transform.rotate(angle: controller.value * 2 * pi, child: child);
+        return Transform.rotate(angle: animation.value * 2 * pi, child: child);
       },
       child: Container(
         decoration: const BoxDecoration(
@@ -109,16 +117,16 @@ class _RotatingGradient extends StatelessWidget {
 }
 
 class _LiquidLayer extends StatelessWidget {
-  final AnimationController controller;
-  const _LiquidLayer({required this.controller});
+  final Animation<double> animation;
+  const _LiquidLayer({required this.animation});
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: controller,
+      animation: animation,
       builder: (context, child) {
         return Transform.rotate(
-          angle: -controller.value * 2 * pi * 0.7,
+          angle: -animation.value * 2 * pi * 0.7,
           child: child,
         );
       },
